@@ -25,9 +25,12 @@
  *         supplierId:
  *           type: integer
  *           description: The ID of the supplier providing this product
- *         stockLevel:
+ *         quantity:
  *           type: integer
- *           description: Current stock level of the product
+ *           description: Current inventory quantity of the product
+ *         reorder_threshold:
+ *           type: integer
+ *           description: Inventory threshold that triggers a low-stock alert when quantity drops below it
  *         discount:
  *           type: number
  *           format: float
@@ -42,5 +45,7 @@ export interface Product {
     sku: string;
     unit: string;
     imgName: string;
+    quantity?: number;
+    reorder_threshold?: number;
     discount?: number;
 }
