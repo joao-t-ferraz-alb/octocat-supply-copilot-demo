@@ -119,6 +119,7 @@ export const resetProducts = () => {
 const shouldEmitLowStockAlert = (previousProduct: Product, updatedProduct: Product) => {
   if (
     typeof previousProduct.quantity !== 'number' ||
+    typeof previousProduct.reorder_threshold !== 'number' ||
     typeof updatedProduct.quantity !== 'number' ||
     typeof updatedProduct.reorder_threshold !== 'number'
   ) {
@@ -126,9 +127,53 @@ const shouldEmitLowStockAlert = (previousProduct: Product, updatedProduct: Produ
   }
 
   return (
-    previousProduct.quantity >= updatedProduct.reorder_threshold &&
+    previousProduct.quantity >= previousProduct.reorder_threshold &&
     updatedProduct.quantity < updatedProduct.reorder_threshold
   );
+};
+
+const buildUpdatedProduct = (existingProduct: Product, updates: Partial<Product>): Product | null => {
+  if (
+    typeof updates.supplierId !== 'number' ||
+    typeof updates.name !== 'string' ||
+    typeof updates.description !== 'string' ||
+    typeof updates.price !== 'number' ||
+    typeof updates.sku !== 'string' ||
+    typeof updates.unit !== 'string' ||
+    typeof updates.imgName !== 'string'
+  ) {
+    return null;
+  }
+
+  if (
+    (Object.prototype.hasOwnProperty.call(updates, 'quantity') && typeof updates.quantity !== 'number') ||
+    (Object.prototype.hasOwnProperty.call(updates, 'reorder_threshold') &&
+      typeof updates.reorder_threshold !== 'number') ||
+    (Object.prototype.hasOwnProperty.call(updates, 'discount') && typeof updates.discount !== 'number')
+  ) {
+    return null;
+  }
+
+  return {
+    ...existingProduct,
+    supplierId: updates.supplierId,
+    name: updates.name,
+    description: updates.description,
+    price: updates.price,
+    sku: updates.sku,
+    unit: updates.unit,
+    imgName: updates.imgName,
+    quantity: Object.prototype.hasOwnProperty.call(updates, 'quantity')
+      ? updates.quantity
+      : existingProduct.quantity,
+    reorder_threshold: Object.prototype.hasOwnProperty.call(updates, 'reorder_threshold')
+      ? updates.reorder_threshold
+      : existingProduct.reorder_threshold,
+    discount: Object.prototype.hasOwnProperty.call(updates, 'discount')
+      ? updates.discount
+      : existingProduct.discount,
+    productId: existingProduct.productId
+  };
 };
 
 // Create a new product
@@ -158,7 +203,13 @@ router.put('/:id', (req, res) => {
   const index = products.findIndex(p => p.productId === parseInt(req.params.id));
   if (index !== -1) {
     const previousProduct = products[index];
-    const updatedProduct: Product = req.body;
+    const updatedProduct = buildUpdatedProduct(previousProduct, req.body);
+
+    if (!updatedProduct) {
+      res.status(400).send('Invalid product payload');
+      return;
+    }
+
     products[index] = updatedProduct;
 
     if (shouldEmitLowStockAlert(previousProduct, updatedProduct)) {
