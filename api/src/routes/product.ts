@@ -111,67 +111,86 @@ let products: Product[] = [...seedProducts];
 export const LOW_STOCK_ALERT_EVENT = 'low-stock-alert';
 export const inventoryEvents = new EventEmitter();
 
+const ALLOWED_PRODUCT_UPDATE_FIELDS = [
+  'productId',
+  'supplierId',
+  'name',
+  'description',
+  'price',
+  'sku',
+  'unit',
+  'imgName',
+  'quantity',
+  'reorder_threshold',
+  'discount'
+] as const;
+
 export const resetProducts = () => {
   products = [...seedProducts];
   inventoryEvents.removeAllListeners();
 };
 
+const hasOwnProperty = <Key extends keyof Product>(value: Partial<Product>, key: Key) =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
 const shouldEmitLowStockAlert = (previousProduct: Product, updatedProduct: Product) => {
   if (
     typeof previousProduct.quantity !== 'number' ||
     typeof previousProduct.reorder_threshold !== 'number' ||
-    typeof updatedProduct.quantity !== 'number' ||
-    typeof updatedProduct.reorder_threshold !== 'number'
+    typeof updatedProduct.quantity !== 'number'
   ) {
     return false;
   }
 
+  // Threshold-only edits should not emit alerts; only a quantity crossing below the
+  // previously persisted threshold should do so.
   return (
     previousProduct.quantity >= previousProduct.reorder_threshold &&
-    updatedProduct.quantity < updatedProduct.reorder_threshold
+    updatedProduct.quantity < previousProduct.reorder_threshold
   );
 };
 
 const buildUpdatedProduct = (existingProduct: Product, updates: Partial<Product>): Product | null => {
+  if (!updates || typeof updates !== 'object' || Array.isArray(updates)) {
+    return null;
+  }
+
+  const unknownFields = Object.keys(updates).filter(
+    key => !ALLOWED_PRODUCT_UPDATE_FIELDS.includes(key as (typeof ALLOWED_PRODUCT_UPDATE_FIELDS)[number])
+  );
+
+  if (unknownFields.length > 0) {
+    return null;
+  }
+
   if (
-    typeof updates.supplierId !== 'number' ||
-    typeof updates.name !== 'string' ||
-    typeof updates.description !== 'string' ||
-    typeof updates.price !== 'number' ||
-    typeof updates.sku !== 'string' ||
-    typeof updates.unit !== 'string' ||
-    typeof updates.imgName !== 'string'
+    (hasOwnProperty(updates, 'productId') && typeof updates.productId !== 'number') ||
+    (hasOwnProperty(updates, 'supplierId') && typeof updates.supplierId !== 'number') ||
+    (hasOwnProperty(updates, 'name') && typeof updates.name !== 'string') ||
+    (hasOwnProperty(updates, 'description') && typeof updates.description !== 'string') ||
+    (hasOwnProperty(updates, 'price') && typeof updates.price !== 'number') ||
+    (hasOwnProperty(updates, 'sku') && typeof updates.sku !== 'string') ||
+    (hasOwnProperty(updates, 'unit') && typeof updates.unit !== 'string') ||
+    (hasOwnProperty(updates, 'imgName') && typeof updates.imgName !== 'string')
   ) {
     return null;
   }
 
   if (
-    (Object.prototype.hasOwnProperty.call(updates, 'quantity') && typeof updates.quantity !== 'number') ||
-    (Object.prototype.hasOwnProperty.call(updates, 'reorder_threshold') &&
-      typeof updates.reorder_threshold !== 'number') ||
-    (Object.prototype.hasOwnProperty.call(updates, 'discount') && typeof updates.discount !== 'number')
+    (hasOwnProperty(updates, 'quantity') && typeof updates.quantity !== 'number') ||
+    (hasOwnProperty(updates, 'reorder_threshold') && typeof updates.reorder_threshold !== 'number') ||
+    (hasOwnProperty(updates, 'discount') && typeof updates.discount !== 'number')
   ) {
+    return null;
+  }
+
+  if (hasOwnProperty(updates, 'productId') && updates.productId !== existingProduct.productId) {
     return null;
   }
 
   return {
     ...existingProduct,
-    supplierId: updates.supplierId,
-    name: updates.name,
-    description: updates.description,
-    price: updates.price,
-    sku: updates.sku,
-    unit: updates.unit,
-    imgName: updates.imgName,
-    quantity: Object.prototype.hasOwnProperty.call(updates, 'quantity')
-      ? updates.quantity
-      : existingProduct.quantity,
-    reorder_threshold: Object.prototype.hasOwnProperty.call(updates, 'reorder_threshold')
-      ? updates.reorder_threshold
-      : existingProduct.reorder_threshold,
-    discount: Object.prototype.hasOwnProperty.call(updates, 'discount')
-      ? updates.discount
-      : existingProduct.discount,
+    ...updates,
     productId: existingProduct.productId
   };
 };
