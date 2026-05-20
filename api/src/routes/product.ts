@@ -137,7 +137,8 @@ const shouldEmitLowStockAlert = (previousProduct: Product, updatedProduct: Produ
   if (
     typeof previousProduct.quantity !== 'number' ||
     typeof previousProduct.reorder_threshold !== 'number' ||
-    typeof updatedProduct.quantity !== 'number'
+    typeof updatedProduct.quantity !== 'number' ||
+    typeof updatedProduct.reorder_threshold !== 'number'
   ) {
     return false;
   }

@@ -86,7 +86,7 @@ describe('Product API', () => {
         expect(lowStockListener).not.toHaveBeenCalled();
     });
 
-    it('rejects invalid and unknown product update fields', async () => {
+    it('rejects invalid field types and mismatched product IDs', async () => {
         const invalidTypeResponse = await request(app).put('/products/1').send({ price: 'string' });
         expect(invalidTypeResponse.status).toBe(400);
 
